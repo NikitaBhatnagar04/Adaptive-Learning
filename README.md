@@ -7,7 +7,6 @@ Brightways is an interactive cognitive training platform designed to help users 
  Features
 
  Interactive Games
-
 * Symbol Stream (Continuous Performance Test)
 * Memory & Attention-based mini games
 * Real-time scoring and feedback
