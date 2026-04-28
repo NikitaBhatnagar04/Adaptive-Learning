@@ -1,0 +1,483 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: CogniLearn Adaptive Training Platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: sessions
+    description: Game session management
+  - name: progress
+    description: Progress tracking
+  - name: adaptive
+    description: Adaptive engine
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /sessions:
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Create a new game session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionBody"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List all sessions
+      parameters:
+        - name: gameType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+
+  /sessions/{id}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get a specific session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+    patch:
+      operationId: updateSession
+      tags: [sessions]
+      summary: Update/complete a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  /progress:
+    get:
+      operationId: getProgress
+      tags: [progress]
+      summary: Get overall progress summary
+      responses:
+        "200":
+          description: Progress summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressSummary"
+
+  /progress/by-game:
+    get:
+      operationId: getProgressByGame
+      tags: [progress]
+      summary: Get progress breakdown by game type
+      responses:
+        "200":
+          description: Progress per game
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameProgress"
+
+  /progress/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [progress]
+      summary: Get recent activity timeline
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityEntry"
+
+  /adaptive/settings:
+    get:
+      operationId: getAdaptiveSettings
+      tags: [adaptive]
+      summary: Get current adaptive settings for a learner
+      responses:
+        "200":
+          description: Adaptive settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdaptiveSettings"
+    patch:
+      operationId: updateAdaptiveSettings
+      tags: [adaptive]
+      summary: Update adaptive settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAdaptiveSettingsBody"
+      responses:
+        "200":
+          description: Updated adaptive settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdaptiveSettings"
+
+  /adaptive/recommend:
+    get:
+      operationId: getGameRecommendation
+      tags: [adaptive]
+      summary: Get recommended next game based on performance
+      responses:
+        "200":
+          description: Game recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameRecommendation"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    CreateSessionBody:
+      type: object
+      properties:
+        gameType:
+          type: string
+          enum:
+            - attention_response
+            - continuous_performance
+            - task_switching
+            - letter_sound
+            - word_formation
+            - visual_tracking
+            - highlighted_reading
+            - social_scenario
+            - emotion_recognition
+            - sensory_filtering
+            - letter_recognition
+            - pattern_recognition
+            - sequencing_task
+            - audio_word_match
+            - speech_echo
+            - mirror_match
+        userId:
+          type: integer
+          nullable: true
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+      required:
+        - gameType
+
+    UpdateSessionBody:
+      type: object
+      properties:
+        score:
+          type: integer
+        accuracy:
+          type: number
+        reactionTimeMs:
+          type: number
+        wrongClicks:
+          type: integer
+        missedSignals:
+          type: integer
+        attentionDuration:
+          type: number
+        hesitationCount:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+        adaptiveFlags:
+          type: object
+          properties:
+            lowAttention:
+              type: boolean
+            readingDifficulty:
+              type: boolean
+            sensoryOverload:
+              type: boolean
+            socialDifficulty:
+              type: boolean
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        gameType:
+          type: string
+        difficulty:
+          type: integer
+        score:
+          type: integer
+        accuracy:
+          type: number
+        reactionTimeMs:
+          type: number
+        wrongClicks:
+          type: integer
+        missedSignals:
+          type: integer
+        attentionDuration:
+          type: number
+        hesitationCount:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        adaptiveFlags:
+          type: object
+          nullable: true
+      required:
+        - id
+        - gameType
+        - difficulty
+        - startedAt
+
+    ProgressSummary:
+      type: object
+      properties:
+        totalSessions:
+          type: integer
+        totalMinutes:
+          type: number
+        averageAccuracy:
+          type: number
+        averageReactionTimeMs:
+          type: number
+        currentStreak:
+          type: integer
+        skillLevels:
+          type: object
+          properties:
+            attention:
+              type: number
+            memory:
+              type: number
+            socialCognition:
+              type: number
+            readingPhonics:
+              type: number
+            sensoryProcessing:
+              type: number
+      required:
+        - totalSessions
+        - totalMinutes
+        - averageAccuracy
+        - currentStreak
+        - skillLevels
+
+    GameProgress:
+      type: object
+      properties:
+        gameType:
+          type: string
+        sessionsPlayed:
+          type: integer
+        averageScore:
+          type: number
+        averageAccuracy:
+          type: number
+        bestScore:
+          type: integer
+        currentDifficulty:
+          type: integer
+        trendDirection:
+          type: string
+          enum: [improving, stable, declining]
+      required:
+        - gameType
+        - sessionsPlayed
+        - averageScore
+        - averageAccuracy
+        - bestScore
+        - currentDifficulty
+        - trendDirection
+
+    ActivityEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        gameType:
+          type: string
+        score:
+          type: integer
+        accuracy:
+          type: number
+        difficulty:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - gameType
+        - completedAt
+
+    AdaptiveSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        taskDurationSeconds:
+          type: integer
+        fontSize:
+          type: string
+          enum: [small, medium, large, xlarge]
+        audioEnabled:
+          type: boolean
+        visualHighlights:
+          type: boolean
+        simplifiedUi:
+          type: boolean
+        breakFrequencyMinutes:
+          type: integer
+        colorTheme:
+          type: string
+          enum: [default, high_contrast, warm, cool]
+        currentDifficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+      required:
+        - id
+        - taskDurationSeconds
+        - fontSize
+        - audioEnabled
+        - visualHighlights
+        - simplifiedUi
+        - breakFrequencyMinutes
+        - colorTheme
+        - currentDifficulty
+
+    UpdateAdaptiveSettingsBody:
+      type: object
+      properties:
+        taskDurationSeconds:
+          type: integer
+        fontSize:
+          type: string
+          enum: [small, medium, large, xlarge]
+        audioEnabled:
+          type: boolean
+        visualHighlights:
+          type: boolean
+        simplifiedUi:
+          type: boolean
+        breakFrequencyMinutes:
+          type: integer
+        colorTheme:
+          type: string
+          enum: [default, high_contrast, warm, cool]
+        currentDifficulty:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    GameRecommendation:
+      type: object
+      properties:
+        gameType:
+          type: string
+        reason:
+          type: string
+        priority:
+          type: string
+          enum: [high, medium, low]
+        suggestedDifficulty:
+          type: integer
+      required:
+        - gameType
+        - reason
+        - priority
+        - suggestedDifficulty

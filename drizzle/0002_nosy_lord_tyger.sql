@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` MODIFY COLUMN `completed_at` timestamp DEFAULT null;

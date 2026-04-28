@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+pnpm install --frozen-lockfile
+pnpm --filter @workspace/db push --force
+pnpm --filter @workspace/api-server build

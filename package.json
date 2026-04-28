@@ -1,0 +1,26 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:web": "pnpm --filter @workspace/cognilearn dev",
+    "dev:api": "pnpm --filter @workspace/api-server dev",
+    "build:api": "pnpm --filter @workspace/api-server build",
+    "build:web": "pnpm --filter @workspace/cognilearn build",
+    "db:push": "pnpm --filter @workspace/db push",
+    "db:push-force": "pnpm --filter @workspace/db push-force"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.26.1",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "catalog:",
+    "mysql2": "^3.22.3"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
+  }
+}
