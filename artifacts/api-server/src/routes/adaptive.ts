@@ -23,17 +23,31 @@ async function getOrCreateSettings(userId: number | null) {
       .from(adaptiveSettingsTable)
       .where(eq(adaptiveSettingsTable.userId, userId))
       .limit(1);
+
     if (existing.length > 0) return existing[0];
+
+    await db.insert(adaptiveSettingsTable).values({ userId });
+
     const [created] = await db
-      .insert(adaptiveSettingsTable)
-      .values({ userId })
-      .returning();
+      .select()
+      .from(adaptiveSettingsTable)
+      .where(eq(adaptiveSettingsTable.userId, userId))
+      .limit(1);
+
     return created;
   }
-  // No userId: use the first row (legacy/global)
+
+  // fallback (no userId)
   const existing = await db.select().from(adaptiveSettingsTable).limit(1);
   if (existing.length > 0) return existing[0];
-  const [created] = await db.insert(adaptiveSettingsTable).values({}).returning();
+
+  await db.insert(adaptiveSettingsTable).values({});
+
+  const [created] = await db
+    .select()
+    .from(adaptiveSettingsTable)
+    .limit(1);
+
   return created;
 }
 
@@ -68,12 +82,6 @@ router.patch("/adaptive/settings", async (req, res): Promise<void> => {
 router.get("/adaptive/recommend", async (req, res): Promise<void> => {
   const userId = parseUserId(req);
   const settings = await getOrCreateSettings(userId);
-
-  const baseQuery = db
-    .select()
-    .from(sessionsTable)
-    .orderBy(desc(sessionsTable.completedAt))
-    .limit(20);
 
   const recentSessions = userId !== null
     ? await db
@@ -120,7 +128,6 @@ router.get("/adaptive/recommend", async (req, res): Promise<void> => {
   let reason = `You haven't played ${leastPlayed.replace(/_/g, " ")} much. Let's practice it!`;
   let priority: "high" | "medium" | "low" = "medium";
 
-  // Identify weakness: lowest accuracy game (recent)
   const perGameAcc: Record<string, number[]> = {};
   for (const s of recentSessions) {
     if (s.accuracy != null) {
@@ -128,12 +135,18 @@ router.get("/adaptive/recommend", async (req, res): Promise<void> => {
       perGameAcc[s.gameType].push(s.accuracy as number);
     }
   }
+
   let weakestGame: string | null = null;
   let weakestAcc = Infinity;
+
   for (const [g, arr] of Object.entries(perGameAcc)) {
     const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
-    if (avg < weakestAcc && arr.length >= 1) { weakestAcc = avg; weakestGame = g; }
+    if (avg < weakestAcc && arr.length >= 1) {
+      weakestAcc = avg;
+      weakestGame = g;
+    }
   }
+
   if (weakestGame && weakestAcc < 60) {
     leastPlayed = weakestGame;
     reason = `Your ${weakestGame.replace(/_/g, " ")} score has dipped — let's strengthen it!`;

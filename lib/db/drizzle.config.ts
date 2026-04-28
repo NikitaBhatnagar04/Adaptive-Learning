@@ -1,10 +1,14 @@
+import { defineConfig } from "drizzle-kit";
+
 export default defineConfig({
-  out: "./drizzle", // ✅ FIXED
-  schema: "./lib/db/src/schema/index.ts",
+  schema: "./lib/db/src/schema",
+  out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "1234",
+    database: "brightways",
   },
-  verbose: true,
-  strict: true,
 });

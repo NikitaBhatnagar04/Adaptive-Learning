@@ -1,42 +1,44 @@
 import {
-  pgTable,
-  serial,
+  mysqlTable,
+  int,
   varchar,
-  integer,
-  real,
+  float,
   timestamp,
-  jsonb,
+  json,
   index,
-} from 'drizzle-orm/pg-core';
-import { usersTable } from './users';
+} from "drizzle-orm/mysql-core";
+import { usersTable } from "./users";
 
-export const sessionsTable = pgTable(
-  'sessions',
+export const sessionsTable = mysqlTable(
+  "sessions",
   {
-    id: serial('id').primaryKey(),
+    id: int("id").primaryKey().autoincrement(),
 
-    userId: integer('user_id').references(() => usersTable.id, { onDelete: 'set null' }),
+    userId: int("user_id")
+  .references(() => usersTable.id, { onDelete: "set null" }),
 
-    gameType: varchar('game_type', { length: 255 }).notNull(),
+    gameType: varchar("game_type", { length: 255 }).notNull(),
 
-    difficulty: integer('difficulty').notNull().default(1),
+    difficulty: int("difficulty").notNull().default(1),
 
-    score: integer('score'),
-    accuracy: real('accuracy'),
-    reactionTimeMs: real('reaction_time_ms'),
-    wrongClicks: integer('wrong_clicks'),
-    missedSignals: integer('missed_signals'),
-    attentionDuration: real('attention_duration'),
-    hesitationCount: integer('hesitation_count'),
+    score: int("score"),
 
-    adaptiveFlags: jsonb('adaptive_flags'),
+    accuracy: float("accuracy"),
+    reactionTimeMs: float("reaction_time_ms"),
+    attentionDuration: float("attention_duration"),
 
-    startedAt: timestamp('started_at', { withTimezone: false }).notNull().defaultNow(),
+    wrongClicks: int("wrong_clicks"),
+    missedSignals: int("missed_signals"),
+    hesitationCount: int("hesitation_count"),
 
-    completedAt: timestamp('completed_at', { withTimezone: false }),
+    adaptiveFlags: json("adaptive_flags"),
+
+    startedAt: timestamp("started_at").notNull().defaultNow(),
+
+    completedAt: timestamp("completed_at"),
   },
   (t) => ({
-    byUser: index('sessions_user_idx').on(t.userId),
-    byGame: index('sessions_game_idx').on(t.gameType),
+    byUser: index("sessions_user_idx").on(t.userId),
+    byGame: index("sessions_game_idx").on(t.gameType),
   })
 );

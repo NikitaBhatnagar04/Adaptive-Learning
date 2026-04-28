@@ -63,14 +63,17 @@ router.post("/sessions", async (req, res): Promise<void> => {
     return;
   }
 
+  await db.insert(sessionsTable).values({
+    gameType: parsed.data.gameType,
+    difficulty: parsed.data.difficulty ?? 1,
+    userId: parsed.data.userId ?? null,
+  });
+
   const [session] = await db
-    .insert(sessionsTable)
-    .values({
-      gameType: parsed.data.gameType,
-      difficulty: parsed.data.difficulty ?? 1,
-      userId: parsed.data.userId ?? null,
-    })
-    .returning();
+    .select()
+    .from(sessionsTable)
+    .orderBy(desc(sessionsTable.id))
+    .limit(1);
 
   res.status(201).json(GetSessionResponse.parse(stripNulls(session)));
 });
@@ -119,18 +122,23 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
   if (parsed.data.completedAt !== undefined) updateData.completedAt = new Date(parsed.data.completedAt);
   if (parsed.data.adaptiveFlags !== undefined) updateData.adaptiveFlags = parsed.data.adaptiveFlags;
 
-  const [session] = await db
+  await db
     .update(sessionsTable)
     .set(updateData)
+    .where(eq(sessionsTable.id, params.data.id));
+
+  const [session] = await db
+    .select()
+    .from(sessionsTable)
     .where(eq(sessionsTable.id, params.data.id))
-    .returning();
+    .limit(1);
 
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;
   }
 
-  // If session was just completed, write to leaderboard, update profile, broadcast
+  // If session completed → leaderboard + profile update
   if (session.completedAt && session.userId && typeof session.score === "number") {
     try {
       await db.insert(leaderboardTable).values({
@@ -141,18 +149,23 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
         difficulty: session.difficulty,
       });
 
-      // Bump profile counters
       await db
         .update(userProfileTable)
         .set({
           totalGamesPlayed: sql`${userProfileTable.totalGamesPlayed} + 1`,
-          totalStars: sql`${userProfileTable.totalStars} + ${Math.max(0, Math.round(session.score / 10))}`,
+          totalStars: sql`${userProfileTable.totalStars} + ${Math.max(
+            0,
+            Math.round(session.score / 10)
+          )}`,
           updatedAt: new Date(),
         })
         .where(eq(userProfileTable.userId, session.userId));
 
-      // Fetch user and broadcast
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, session.userId));
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, session.userId));
+
       broadcast("leaderboard", "entry", {
         userId: session.userId,
         userName: user?.name ?? "Player",
@@ -164,7 +177,6 @@ router.patch("/sessions/:id", async (req, res): Promise<void> => {
         achievedAt: new Date().toISOString(),
       });
     } catch (e) {
-      // Non-fatal: log and continue
       console.error("[leaderboard write] failed", e);
     }
   }

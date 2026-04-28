@@ -19,24 +19,51 @@ router.post("/users/upsert", async (req, res): Promise<void> => {
 
   const { name, avatarEmoji } = parsed.data;
 
-  // Upsert by name
+  // Check if user exists
   const existing = await db.select().from(usersTable).where(eq(usersTable.name, name));
   let user = existing[0];
 
   if (!user) {
-    const [created] = await db
-      .insert(usersTable)
-      .values({ name, avatarEmoji: avatarEmoji ?? "🌟" })
-      .returning();
-    user = created;
-    await db.insert(userProfileTable).values({ userId: user.id }).onConflictDoNothing();
+    // INSERT (no returning in MySQL)
+    await db.insert(usersTable).values({
+      name,
+      avatarEmoji: avatarEmoji ?? "🌟",
+    });
+
+    const [createdUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.name, name))
+      .limit(1);
+
+    user = createdUser;
+
+    // create profile if not exists
+    const existingProfile = await db
+      .select()
+      .from(userProfileTable)
+      .where(eq(userProfileTable.userId, user.id));
+
+    if (existingProfile.length === 0) {
+      await db.insert(userProfileTable).values({ userId: user.id });
+    }
   } else {
-    const [updated] = await db
+    // UPDATE (no returning)
+    await db
       .update(usersTable)
-      .set({ lastSeenAt: new Date(), ...(avatarEmoji ? { avatarEmoji } : {}) })
+      .set({
+        lastSeenAt: new Date(),
+        ...(avatarEmoji ? { avatarEmoji } : {}),
+      })
+      .where(eq(usersTable.id, user.id));
+
+    const [updatedUser] = await db
+      .select()
+      .from(usersTable)
       .where(eq(usersTable.id, user.id))
-      .returning();
-    user = updated;
+      .limit(1);
+
+    user = updatedUser;
   }
 
   res.json({ user });
@@ -61,19 +88,22 @@ router.get("/users/:id/profile", async (req, res): Promise<void> => {
     .where(eq(userProfileTable.userId, id));
 
   if (!profile) {
-    const [created] = await db
-      .insert(userProfileTable)
-      .values({ userId: id })
-      .onConflictDoNothing()
-      .returning();
-    profile = created;
+    await db.insert(userProfileTable).values({ userId: id });
+
+    const [createdProfile] = await db
+      .select()
+      .from(userProfileTable)
+      .where(eq(userProfileTable.userId, id))
+      .limit(1);
+
+    profile = createdProfile;
   }
 
-  // Aggregate live stats from sessions
+  // MySQL-compatible stats
   const stats = await db
     .select({
-      totalGames: sql<number>`count(*)::int`,
-      totalScore: sql<number>`coalesce(sum(${sessionsTable.score}),0)::int`,
+      totalGames: sql<number>`count(*)`,
+      totalScore: sql<number>`coalesce(sum(${sessionsTable.score}),0)`,
       avgAccuracy: sql<number>`coalesce(avg(${sessionsTable.accuracy}),0)`,
     })
     .from(sessionsTable)

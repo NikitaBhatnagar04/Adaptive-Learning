@@ -1,19 +1,38 @@
-import { pgTable, serial, varchar, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
+import {
+  mysqlTable,
+  int,
+  varchar,
+  timestamp,
+  json,
+} from "drizzle-orm/mysql-core";
 
-export const usersTable = pgTable('users', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull().unique(),
-  avatarEmoji: varchar('avatar_emoji', { length: 16 }).default('🌟'),
-  createdAt: timestamp('created_at', { withTimezone: false }).notNull().defaultNow(),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: false }).notNull().defaultNow(),
+export const usersTable = mysqlTable("users", {
+  id: int("id").primaryKey().autoincrement(),
+
+  name: varchar("name", { length: 100 }).notNull().unique(),
+
+  avatarEmoji: varchar("avatar_emoji", { length: 16 }).default("🌟"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
 });
 
-export const userProfileTable = pgTable('user_profile', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => usersTable.id, { onDelete: 'cascade' }).unique(),
-  totalStars: integer('total_stars').notNull().default(0),
-  totalGamesPlayed: integer('total_games_played').notNull().default(0),
-  strengths: jsonb('strengths'),
-  weaknesses: jsonb('weaknesses'),
-  updatedAt: timestamp('updated_at', { withTimezone: false }).notNull().defaultNow(),
+export const userProfileTable = mysqlTable("user_profile", {
+  id: int("id").primaryKey().autoincrement(),
+
+  userId: int("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" })
+    .unique(),
+
+  totalStars: int("total_stars").notNull().default(0),
+
+  totalGamesPlayed: int("total_games_played").notNull().default(0),
+
+  strengths: json("strengths"),
+
+  weaknesses: json("weaknesses"),
+
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
